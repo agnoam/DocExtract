@@ -16,10 +16,10 @@ from dacite import from_dict
 class ETCDModuleConfigs:
     """
         Description of ETCDModuleConfigs class:
-        `dirname: str` - 
-        `gen_keys: bool` - 
-        `override_sys_object: bool` - 
-        `watch_keys: bool` - 
+        `dirname: str` - Name of the directory that will contain all configuration in etcd (default=os.getenv('ETCD_SERVICE_NAME'))
+        `gen_keys: bool` - Generate key in the etcd if it not exists
+        `override_sys_object: bool` - Override the environment variable 
+        `watch_keys: bool` - Watch for changes made in the etcd and get notified by a callback
 
     """
     dirname: str = None
@@ -123,8 +123,8 @@ class ETCDConfig:
             And run the callback function
         """
         events_iterator, cancel = self.etcd.watch(etcd_entry_name)
-        for event in events_iterator:
-            event
+        # for event in events_iterator:
+        #     event
         
     
     def _start_fetch(self) -> None:

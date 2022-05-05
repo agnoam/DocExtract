@@ -8,7 +8,7 @@ from pika.connection import ConnectionParameters
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
 
-# from .src.constants.constants import RABBIT_HOST_ENV_KEY, RABBIT_PORT_ENV_KEY
+from ..constants.rabbit_constants import RABBIT_HOST_ENV_KEY, RABBIT_PORT_ENV_KEY
 
 # from dotenv import load_dotenv
 # load_dotenv() # Take environment variables from .env.

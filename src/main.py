@@ -3,7 +3,9 @@ import sys
 
 from elasticapm.traces import Span, Transaction
 
+from .constants.defaults_constatns import DEFAULT_RECEIVE_DOCX_QUEUE_NAME
 from .configs.apm_config import apm
+from .configs.etcd_config import ETCDConfig, ETCDConnectionConfigurations, ETCDModuleConfigs, EtcdConfigurations
 from .configs.rabbit_config import RabbitDriver, RabbitQueue
 
 def main() -> None:
@@ -28,6 +30,20 @@ def service_initialization(transaction: Transaction) -> None:
     """
         Initializing the connections the service uses
     """
+    ETCDConfig(
+        connection_configurations=ETCDConnectionConfigurations(
+            host=os.getenv("ETCD_HOST")
+        ),
+        user_defined_configs=EtcdConfigurations(
+            module_configs=ETCDModuleConfigs(
+                
+            ),
+            environment_params={
+                'RABBIT_QUEUE_RECIEVE_DOCX': DEFAULT_RECEIVE_DOCX_QUEUE_NAME
+            }
+        )
+    )
+
     RabbitDriver.initialize_rabbitmq({
         # RABBIT_QUEUE_IMAGES_TO_RECOGNIZE: RabbitQueue(callback=image_to_recognize_handler),
         # RABBIT_QUEUE_FOUND_FACES: RabbitQueue()

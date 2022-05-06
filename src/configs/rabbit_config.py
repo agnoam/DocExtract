@@ -8,10 +8,15 @@ from pika.connection import ConnectionParameters
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
 
-from ..constants.rabbit_constants import RABBIT_HOST_ENV_KEY, RABBIT_PORT_ENV_KEY
+from ..constants.rabbit_constants import EnvKeys
 
 # from dotenv import load_dotenv
 # load_dotenv() # Take environment variables from .env.
+
+"""
+    RabbitDriver -
+    
+"""
 
 class RabbitQueue:
     '''
@@ -60,13 +65,13 @@ class RabbitDriver:
         print('__initialize_connection() executing')
 
         if host is None:
-            host = str(os.getenv(RABBIT_HOST_ENV_KEY))
+            host = str(os.getenv(EnvKeys.RABBIT_HOST))
 
         parameters: ConnectionParameters = pika.ConnectionParameters(host)
 
         # Priority of port: manually set (arg), ENV, _DEFAULT
-        if str(os.getenv(RABBIT_PORT_ENV_KEY)) is not None and port is None:
-            port = int(os.getenv(RABBIT_PORT_ENV_KEY))
+        if str(os.getenv(EnvKeys.RABBIT_PORT)) is not None and port is None:
+            port = int(os.getenv(EnvKeys.RABBIT_PORT))
             parameters.port = port
 
         cls.connection = pika.SelectConnection(

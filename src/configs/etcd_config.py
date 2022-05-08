@@ -1,28 +1,34 @@
 import os
 from dataclasses import dataclass, asdict
-from subprocess import call
 from typing import Any, Final, Callable
 
 import etcd3
 from etcd3 import Etcd3Client
 from dacite import from_dict
+from dotenv import load_dotenv
 
 """
     ETCDConfig -
 
+    This "module" will initialize a connection to etcd3 service.
+    It will fetch data from it, and will set it as environment variables.
+    The priority of the data fetch is like the following:
+        1. Directly from the etcd
+        3. From manually added environment variables
+        2. From .env file
+        4. From default values loaded to the module
 """
-
 @dataclass
-class ETCDModuleConfigs:
+class ETCDModuleOptions:
     """
-        Description of ETCDModuleConfigs class:
+        Description of ETCDModuleOptions class:
+
         `dirname: str` - Name of the directory that will contain all configuration in etcd (default=os.getenv('ETCD_SERVICE_NAME'))
         `gen_keys: bool` - Generate key in the etcd if it not exists
         `override_sys_object: bool` - Override the environment variable 
         `watch_keys: bool` - Watch for changes made in the etcd and get notified by a callback
-
     """
-    dirname: str = None
+    dirname: str = str(os.getenv('ETCD_SERVICE_NAME'))
     gen_keys: bool = False
     override_sys_object: bool = False
     watch_keys: bool = False
@@ -45,7 +51,7 @@ class EtcdConfigurations:
         `module_configs: ETCDModuleConfigs` - A set of options that can be configured the way the class operates 
         `environment_params: dict[str, ETCDPropertyDefenition | str]` - Environment variables that you want to retrive/watch from the etcd
     """
-    module_configs: ETCDModuleConfigs
+    module_configs: ETCDModuleOptions
     environment_params: dict[str, ETCDPropertyDefenition | str]
 
 
@@ -67,7 +73,7 @@ class ETCDConnectionConfigurations:
 class ETCDConfig:
     default_configs: EtcdConfigurations = EtcdConfigurations(
         environment_params={},
-        module_configs=ETCDModuleConfigs(dirname=str(os.getenv('ETCD_SERVICE_NAME')))
+        module_configs=ETCDModuleOptions()
     )
 
     etcd: Etcd3Client
@@ -77,7 +83,7 @@ class ETCDConfig:
 
     def __init__(
         self,
-        connection_configurations: ETCDConnectionConfigurations, 
+        connection_configurations: ETCDConnectionConfigurations,
         user_defined_configs: EtcdConfigurations
     ) -> None:
         try:
@@ -85,11 +91,14 @@ class ETCDConfig:
             self.proccessed_configs = self._override_default_configs(user_defined_configs)
             self.env_params = {}
 
-            if self.proccessed_configs.module_configs:
-                if not self.proccessed_configs.module_config.dirname:
-                    raise Exception('ETCD_SERVICE_NAME not found in environment variables')
+            module_configs: ETCDModuleOptions = self.proccessed_configs.module_config
+            if module_configs:
+                if not module_configs.dirname:
+                    raise Exception('dirname not defined either in module_configs nor in "ETCD_SERVICE_NAME" environment variable')
             if not self.proccessed_configs.env_params:
                 raise Exception('Configurations does not conatins any properties')
+
+            self._start_fetch()
         except Exception as e:
             print('Exception occurred in ETCDConfig constructor', e)
 
@@ -132,7 +141,7 @@ class ETCDConfig:
             Trying to fetch the wanted parameters from the etcd,
             In case it failes, it will do the fallback mentioned at the top of this file
         """
-        module_configs: ETCDModuleConfigs = self.proccessed_configs.module_configs
+        module_configs: ETCDModuleOptions = self.proccessed_configs.module_configs
         env_params: dict[str, ETCDPropertyDefenition | str] = self.proccessed_configs.environment_params
         for property_name in env_params.keys():
             generated_path: Final[str] = f'{module_configs.dirname}/{property_name}'
@@ -148,14 +157,14 @@ class ETCDConfig:
             try:
                 etcd_res, metadata = self.etcd.get(etcd_entry_name)
                 if module_configs.override_sys_object:
-                    self._override_sys_object(property_name, etcd_res or default_val)
-                env_params[property_name] = etcd_res or default_val
+                    self._override_sys_object(property_name, etcd_res or load_dotenv(property_name) or default_val)
+                env_params[property_name] = etcd_res or load_dotenv(property_name) or default_val
 
                 # TODO: Add watch_for_key_changes support
                 # if module_configs.watch_keys:
                 #     self._watch_for_changes(etcd_entry_name, property_name)
                 
-                if not etcd_res or module_configs.gen_keys: 
+                if not etcd_res and module_configs.gen_keys: 
                     self.etcd.put(etcd_entry_name, os.getenv(property_name))
 
             except Exception as e:

@@ -4,12 +4,12 @@ from typing import Final
 
 from elasticapm.traces import Span, Transaction
 
-from .constants.apm_constants import TransactionTypes
-from .constants.app_constatns import DEFAULT_RECEIVE_DOCX_QUEUE_NAME
-from .configs.apm_config import apm
-from .configs.etcd_config import ETCDConfig, ETCDConnectionConfigurations, ETCDModuleConfigs, EtcdConfigurations
-from .configs.rabbit_config import RabbitDriver, RabbitQueue
-from .handlers.rabbit_handlers import receive_docx_handler
+from constants.apm_constants import TransactionTypes, SpanTypes
+from constants.app_constatns import DEFAULT_RECEIVE_DOCX_QUEUE_NAME
+from configs.apm_config import apm
+from configs.etcd_config import ETCDConfig, ETCDConnectionConfigurations, ETCDModuleConfigs, EtcdConfigurations
+from configs.rabbit_config import RabbitDriver, RabbitQueue
+from handlers.rabbit_handlers import receive_docx_handler
 
 def main() -> None:
     try:
@@ -33,7 +33,7 @@ def service_initialization(transaction: Transaction=None) -> None:
     """
         Initializing the connections the service uses
     """
-    etcd_span: Span = transaction.begin_span('ETCD setup')
+    etcd_span: Span = transaction.begin_span('ETCD setup', SpanTypes.TASK)
     ETCDConfig(
         connection_configurations=ETCDConnectionConfigurations(
             host=os.getenv("ETCD_HOST")
@@ -50,11 +50,10 @@ def service_initialization(transaction: Transaction=None) -> None:
     )
     etcd_span.end()
 
-    rabbit_span: Span = transaction.begin_span('RabbitMQ setup')
+    rabbit_span: Span = transaction.begin_span('RabbitMQ setup', SpanTypes.TASK)
     RECIEVED_DOCX_QUEUE: Final[str] = os.getenv('RABBIT_QUEUE_RECIEVE_DOCX', DEFAULT_RECEIVE_DOCX_QUEUE_NAME)
     RabbitDriver.initialize_rabbitmq({
-        RECIEVED_DOCX_QUEUE: RabbitQueue(callback=receive_docx_handler),
-        # RABBIT_QUEUE_FOUND_FACES: RabbitQueue()
+        RECIEVED_DOCX_QUEUE: RabbitQueue(callback=receive_docx_handler)
     })
     rabbit_span.end()
 

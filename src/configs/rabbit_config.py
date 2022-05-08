@@ -8,7 +8,7 @@ from pika.connection import ConnectionParameters
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
 
-from ..constants.rabbit_constants import EnvKeys
+from constants.rabbit_constants import EnvKeys
 
 # from dotenv import load_dotenv
 # load_dotenv() # Take environment variables from .env.
@@ -51,11 +51,11 @@ class RabbitDriver:
         cls,
         queues_configurations: dict[str, RabbitQueue],
         host: str = None,
-        port: int = None,
+        port: int = 5672,
         credentials: Any = None
     ) -> None:
         cls.queues_configurations = queues_configurations
-        cls.__initialize_connection(host)
+        cls.__initialize_connection(host, port, credentials)
 
     @classmethod
     def __initialize_connection(
@@ -70,9 +70,11 @@ class RabbitDriver:
         parameters: ConnectionParameters = pika.ConnectionParameters(host)
 
         # Priority of port: manually set (arg), ENV, _DEFAULT
-        if str(os.getenv(EnvKeys.RABBIT_PORT)) is not None and port is None:
-            port = int(os.getenv(EnvKeys.RABBIT_PORT))
+        if os.getenv(EnvKeys.RABBIT_PORT) is not None and port is None:
+            port = int(str(os.getenv(EnvKeys.RABBIT_PORT)))
             parameters.port = port
+        else:
+            raise Exception('port for rabbit_mq server must be provided')
 
         cls.connection = pika.SelectConnection(
             parameters = parameters, 

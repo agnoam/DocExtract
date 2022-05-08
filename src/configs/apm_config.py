@@ -3,7 +3,7 @@ import os
 import elasticapm
 from elasticapm.base import Client
 
-from ..constants.apm_constants import DefaultValues
+from constants.apm_constants import DefaultValues
 
 # from dotenv import load_dotenv
 # load_dotenv() # Take environment variables from .env

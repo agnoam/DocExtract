@@ -66,7 +66,7 @@ class ETCDConnectionConfigurations:
 
 class ETCDConfig:
     default_configs: EtcdConfigurations = EtcdConfigurations(
-        env_params={},
+        environment_params={},
         module_configs=ETCDModuleConfigs(dirname=str(os.getenv('ETCD_SERVICE_NAME')))
     )
 

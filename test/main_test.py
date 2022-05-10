@@ -4,4 +4,8 @@ import pytest
 
 """
     Unit testings instructions:
+    In each unit test,
+
+    - Check the expected result
+    - Check expected failure
 """

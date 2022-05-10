@@ -1,12 +1,14 @@
-from logging import debug
+import os
 import threading
 from typing import Any, Callable
+from logging import debug
+
 import pika
 from pika import SelectConnection
-import os
 from pika.connection import ConnectionParameters
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
+from pika.credentials import ExternalCredentials, PlainCredentials
 
 from constants.rabbit_constants import EnvKeys
 
@@ -51,8 +53,8 @@ class RabbitDriver:
         cls,
         queues_configurations: dict[str, RabbitQueue],
         host: str = None,
-        port: int = 5672,
-        credentials: Any = None
+        port: int = None,
+        credentials: PlainCredentials | ExternalCredentials = None
     ) -> None:
         cls.queues_configurations = queues_configurations
         cls.__initialize_connection(host, port, credentials)
@@ -60,26 +62,27 @@ class RabbitDriver:
     @classmethod
     def __initialize_connection(
         cls, host: str = None, 
-        port: int = None, credentials = None
+        port: int = None, credentials: PlainCredentials | ExternalCredentials = None
     ) -> None:
         print('__initialize_connection() executing')
 
         if host is None:
             host = str(os.getenv(EnvKeys.RABBIT_HOST))
 
-        parameters: ConnectionParameters = pika.ConnectionParameters(host)
+        parameters: ConnectionParameters = pika.ConnectionParameters(host, credentials=credentials)
 
         # Priority of port: manually set (arg), ENV, _DEFAULT
-        if os.getenv(EnvKeys.RABBIT_PORT) is not None and port is None:
-            port = int(str(os.getenv(EnvKeys.RABBIT_PORT)))
-            parameters.port = port
-        else:
-            raise Exception('port for rabbit_mq server must be provided')
+        if port is None:
+            if os.getenv(EnvKeys.RABBIT_PORT) is not None:
+                port = int(os.getenv(EnvKeys.RABBIT_PORT))
+                parameters.port = port
+            else:
+                raise Exception('Port for RabbitMQ server must be provided')
 
         cls.connection = pika.SelectConnection(
             parameters = parameters, 
             on_open_callback = lambda connection: cls.__setup_channels(connection),
-            on_close_callback = lambda event: print(f'connection closed (by {event} event)')
+            on_close_callback = lambda event: print(f'Connection closed (by {event} event)')
         )
         
     @classmethod
@@ -137,13 +140,16 @@ class RabbitDriver:
 
     @classmethod
     def listen(cls) -> None:
-        print('listen() executing')
+        try:
+            print('listen() executing')
 
-        err_message: str = "There is no declared connection, don't forget to call initialize_rabbitmq() method before"
-        assert cls.connection is not None, err_message
+            err_message: str = "There is no declared connection, don't forget to call initialize_rabbitmq() method before"
+            assert cls.connection is not None, err_message
 
-        print('Starting to listen by io loop')
-        cls.connection.ioloop.start()
+            print('Starting to listen by io loop')
+            cls.connection.ioloop.start()
+        except Exception as ex:
+            print('Listen for RabbitMQ failed:', ex)
 
     @classmethod
     def close_connection(cls) -> None:

@@ -43,10 +43,10 @@ def extract_strings_by_style(docx_path: str, styles_names: list[str]) -> list[An
 
         returns: Dictionary of all style names with it's hits   
     """
-    # DOCX_PATH: Final[str] = r'C:\Users\joe\Desktop\DocExtract\assets\יש לנו טקסט מוזר.docx'
     STYLES_XML_PATH: Final[str] = 'word/styles.xml'
     DOCUMENT_XML_PATH: Final[str] = 'word/document.xml'
 
+    # Use use / open()
     ARCHIVE: Final[ZipFile] = ZipFile(docx_path, 'r')
     STYLES_CONTENT: Final[bytes] = ARCHIVE.read(STYLES_XML_PATH)
     DOCUMENT_CONTENT: Final[bytes] = ARCHIVE.read(DOCUMENT_XML_PATH)

@@ -14,8 +14,14 @@ def receive_docx_handler(
     try:
         transaction: Transaction = apm.begin_transaction(TransactionTypes.QUEUE_HANDLER)
         transaction.name = 'Receive docx handler'
-        # transaction
+        print('Received a message', {
+            'channel': channel, 
+            'method': method, 
+            'properties': properties, 
+            'body': body
+        })
+        transaction.end()
     except Exception as ex:
         apm.capture_exception(ex)
-        print(f'rabbitmq_callback exception: {ex}', 'red')
+        print(f'Caught rabbitmq_callback exception: {ex}', 'red')
     pass

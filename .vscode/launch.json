@@ -5,7 +5,7 @@
             "type": "python",
             "request": "launch",
             "program": "src/main.py",
-            "console": "integratedTerminal",
+            "console": "internalConsole",
             "justMyCode": true
         }
     ]

@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from configs.apm_config import trace_function
 from constants.apm_constants import SpanTypes
 
+load_dotenv()
+
 """
     ETCDConfig -
 
@@ -84,6 +86,7 @@ class ETCDConfig:
     # _etcd_watcher: Watcher
     env_params: dict[str, Any]
 
+    @trace_function(span_name="ETCD initialization", span_type=SpanTypes.TASK)
     def __init__(
         self,
         connection_configurations: ETCDConnectionConfigurations,
@@ -160,8 +163,8 @@ class ETCDConfig:
             try:
                 etcd_res, metadata = self.etcd.get(etcd_entry_name)
                 if module_configs.override_sys_object:
-                    self._override_sys_object(property_name, etcd_res or load_dotenv(property_name) or default_val)
-                env_params[property_name] = etcd_res or load_dotenv(property_name) or default_val
+                    self._override_sys_object(property_name, etcd_res or os.getenv(property_name) or default_val)
+                env_params[property_name] = etcd_res or os.getenv(property_name) or default_val
 
                 # TODO: Add watch_for_key_changes support
                 # if module_configs.watch_keys:

@@ -19,7 +19,7 @@ from constants.rabbit_constants import EnvKeys
 
 """
     RabbitDriver -
-    
+    This module contains driver functions to create and consume from RabbitMQ queues
 """
 
 class RabbitQueue:
@@ -70,16 +70,15 @@ class RabbitDriver:
 
         if host is None:
             host = str(os.getenv(EnvKeys.RABBIT_HOST))
+        assert host is not None, 'RabbitMQ host must be provided'
 
         parameters: ConnectionParameters = pika.ConnectionParameters(host, credentials=credentials)
 
         # Priority of port: manually set (arg), ENV, _DEFAULT
         if port is None:
-            if os.getenv(EnvKeys.RABBIT_PORT) is not None:
-                port = int(os.getenv(EnvKeys.RABBIT_PORT))
-                parameters.port = port
-            else:
-                raise Exception('Port for RabbitMQ server must be provided')
+            assert os.getenv(EnvKeys.RABBIT_PORT) is not None, 'Port for RabbitMQ server must be provided'
+            port = int(os.getenv(EnvKeys.RABBIT_PORT))
+            parameters.port = port
 
         RabbitDriver.connection = pika.SelectConnection(
             parameters = parameters, 

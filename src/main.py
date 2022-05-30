@@ -38,8 +38,8 @@ def service_initialization(transaction: Transaction=None) -> None:
     """
         Initializing the connections the service uses
     """
-    etcd_span: Span = transaction.begin_span("ETCD initialization", SpanTypes.TASK)
     ETCDConfig(
+        transaction=transaction,
         connection_configurations=ETCDConnectionConfigurations(
             host=os.getenv("ETCD_HOST")
         ),
@@ -53,9 +53,7 @@ def service_initialization(transaction: Transaction=None) -> None:
             }
         )
     )
-    etcd_span.end()
 
-    
     S3Config.initialize_s3(transaction=transaction)
 
     # rabbit_span: Span = transaction.begin_span('RabbitMQ setup', SpanTypes.TASK)

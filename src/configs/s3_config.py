@@ -20,7 +20,7 @@ class S3Config:
 
     @staticmethod
     @trace_function(span_name="S3 initialization", span_type=SpanTypes.TASK)
-    def initialize_s3(uri: str=None, access_key_id: str=None, secret_access_key: str=None) -> None:
+    def initialize_s3(uri: str = None, access_key_id: str = None, secret_access_key: str = None) -> None:
         """
             Initialize S3 connection - Creating the client object that communicates with the S3
         """

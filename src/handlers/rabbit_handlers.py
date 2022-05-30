@@ -16,7 +16,7 @@ def receive_docx_handler(
     print('Received a message', {
         'channel': channel, 
         'method': method, 
-        'properties': properties, 
+        'properties': properties,
         'body': body
     })
     # except Exception as ex:

@@ -7,6 +7,9 @@ from etcd3 import Etcd3Client
 from dacite import from_dict
 from dotenv import load_dotenv
 
+from configs.apm_config import trace_function
+from constants.apm_constants import SpanTypes
+
 """
     ETCDConfig -
 
@@ -135,7 +138,6 @@ class ETCDConfig:
         # for event in events_iterator:
         #     event
         
-    
     def _start_fetch(self) -> None:
         """
             Trying to fetch the wanted parameters from the etcd,

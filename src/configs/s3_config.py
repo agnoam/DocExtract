@@ -1,8 +1,13 @@
+from __future__ import annotations
 import os
 from typing import Any
 
 import boto3
 from boto3_type_annotations.s3 import Client
+
+from configs.apm_config import trace_function
+from constants.apm_constants import SpanTypes
+from constants.s3_constants import EnvKeys
 
 # from src.constants.constants import AWS_ACCESS_KEY_ID_ENV_KEY, AWS_SECRET_ACCESS_KEY_ENV_KEY, AWS_URI_ENV_KEY
 
@@ -13,22 +18,23 @@ from boto3_type_annotations.s3 import Client
 class S3Config:
     S3: Client = None
 
-    @classmethod
-    def initialize_s3(cls, uri: str=None, access_key_id: str=None, secret_access_key: str=None) -> None:
+    @staticmethod
+    @trace_function(span_name="S3 initialization", span_type=SpanTypes.TASK)
+    def initialize_s3(uri: str=None, access_key_id: str=None, secret_access_key: str=None) -> None:
         """
             Initialize S3 connection - Creating the client object that communicates with the S3
         """
-        if cls.S3 is None: 
+        if S3Config.S3 is None: 
             if uri is None:
-                uri = str(os.getenv('AWS_URI_ENV_KEY'))
+                uri = str(os.getenv(EnvKeys.AWS_URI))
 
             if access_key_id is None:
-                access_key_id = str(os.getenv('AWS_ACCESS_KEY_ID_ENV_KEY'))
+                access_key_id = str(os.getenv(EnvKeys.AWS_ACCESS_KEY_ID))
 
             if secret_access_key is None:
-                secret_access_key = str(os.getenv('AWS_SECRET_ACCESS_KEY_ENV_KEY'))
+                secret_access_key = str(os.getenv(EnvKeys.AWS_SECRET_ACCESS_KEY))
 
-            cls.S3 = boto3.client(
+            S3Config.S3 = boto3.client(
                 's3',
                 aws_access_key_id = access_key_id,
                 aws_secret_access_key = secret_access_key,
@@ -44,7 +50,7 @@ class S3Path:
         self.port = port
 
     @staticmethod
-    def from_dict(dict: dict[str, Any]) -> 'S3Path':
+    def from_dict(dict: dict[str, Any]) -> S3Path:
         """
             Create S3Path object from dictionary
 

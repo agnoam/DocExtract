@@ -3,13 +3,13 @@ import sys
 from typing import Final
 
 from pika.credentials import PlainCredentials
-from elasticapm.traces import Span, Transaction
-from configs.s3_config import S3Config
+from elasticapm.traces import Transaction
 
+from configs.s3_config import S3Config
 from constants.apm_constants import TransactionTypes, SpanTypes
 from constants.app_constatns import DEFAULT_RECEIVE_DOCX_QUEUE_NAME
 from constants.rabbit_constants import EnvKeys as RabbitEnvKeys
-from configs.apm_config import apm, create_transaction, trace_function
+from configs.apm_config import apm, create_transaction, end_transaction, trace_function
 from configs.etcd_config import ETCDConfig, ETCDConnectionConfigurations, ETCDModuleOptions, EtcdConfigurations
 from configs.rabbit_config import RabbitDriver, RabbitQueue
 from handlers.rabbit_handlers import receive_docx_handler
@@ -18,7 +18,7 @@ def main() -> None:
     try:
         transaction: Transaction = create_transaction('Boot Initialization', TransactionTypes.BOOT_LOOP)
         service_initialization(transaction=transaction)
-        transaction.end()
+        end_transaction(transaction)
         
         RabbitDriver.listen() # Must be the last line of the script
 
@@ -64,7 +64,7 @@ def service_initialization(transaction: Transaction=None) -> None:
     password: Final[str] = os.getenv(RabbitEnvKeys.RABBIT_PASSWORD)
 
     RabbitDriver.initialize_rabbitmq(
-        transaction=transaction,
+        transaction=transaction, # Just to transport the transaction to the decorator
         credentials=PlainCredentials(username, password), # Optional
         queues_configurations={
             RECIEVED_DOCX_QUEUE: RabbitQueue(callback=receive_docx_handler)

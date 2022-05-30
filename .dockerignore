@@ -1,5 +1,7 @@
 venv/
 temp/
+__pycache__/
+.*_cache/
 
 Dockerfile
 README.md

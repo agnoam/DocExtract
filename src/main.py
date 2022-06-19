@@ -53,10 +53,11 @@ def service_initialization(transaction: Transaction=None) -> None:
             }
         )
     )
+    
+    # TODO: Connect to Database and create the tables in case they does not exists
 
     S3Config.initialize_s3(transaction=transaction)
-
-    # rabbit_span: Span = transaction.begin_span('RabbitMQ setup', SpanTypes.TASK)
+    
     RECIEVED_DOCX_QUEUE: Final[str] = os.getenv('RABBIT_QUEUE_RECIEVE_DOCX', DEFAULT_RECEIVE_DOCX_QUEUE_NAME)
     
     # Optional, in case use have changed the default credentials
@@ -70,7 +71,6 @@ def service_initialization(transaction: Transaction=None) -> None:
             RECIEVED_DOCX_QUEUE: RabbitQueue(callback=receive_docx_handler)
         }
     )
-    # rabbit_span.end()
 
 if __name__ == "__main__":
     main()

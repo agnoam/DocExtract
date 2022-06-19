@@ -1,7 +1,7 @@
 import os
 
 from dataclasses import dataclass
-from typing import Any, Final, List
+from typing import Any, Final
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 import lxml.etree as etree
@@ -87,7 +87,7 @@ def extract_strings_by_style(docx_path: str, styles_names: list[str]) -> dict[st
                         print(f'found values: {element} of type style {style_id}')
                         element.text = f'[{element.text}:{style_id}]'
 
-        etree.ElementTree(DOC_XML_ROOT).write(os.path.join(os.path.dirname(), 'document.xml'))
+        etree.ElementTree(DOC_XML_ROOT).write(os.path.join(os.path.dirname(), '/document.xml'))
         return results
 
 if __name__ == '__main__':

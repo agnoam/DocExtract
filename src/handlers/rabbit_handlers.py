@@ -4,8 +4,8 @@ from elasticapm.traces import Span, Transaction
 from pika.channel import Channel
 from pika.spec import Basic, BasicProperties
 
-from configs.apm_config import TransactionCreationData, apm, create_transaction, end_transaction, trace_function
-from constants.apm_constants import SpanTypes, TransactionTypes
+from configs.apm_config import TransactionCreationData, apm, trace_function
+from constants.apm_constants import TransactionTypes
 
 @trace_function(
     transaction=TransactionCreationData('Receive docx file', TransactionTypes.QUEUE_HANDLER),

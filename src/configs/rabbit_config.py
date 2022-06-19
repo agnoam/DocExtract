@@ -21,7 +21,6 @@ from constants.rabbit_constants import EnvKeys
     RabbitDriver -
     This module contains driver functions to create and consume from RabbitMQ queues
 """
-
 class RabbitQueue:
     '''
         Callback can be none, because it can be used just for publishing data
@@ -81,7 +80,7 @@ class RabbitDriver:
             parameters.port = port
 
         RabbitDriver.connection = pika.SelectConnection(
-            parameters = parameters, 
+            parameters = parameters,
             on_open_callback = lambda connection: RabbitDriver.__setup_channels(connection),
             on_close_callback = lambda event: print(f'Connection closed (by {event} event)')
         )
@@ -113,7 +112,7 @@ class RabbitDriver:
 
         channel.queue_declare(queue=queue_name)
         
-        ''' In case the queue_configuration has a callback function, it means the user want to set a consumer '''
+        '''In case the queue_configuration has a callback function, it means the user want to set a consumer'''
         if queue_declaration.callback is not None:            
             channel.basic_consume(
                 queue_name,

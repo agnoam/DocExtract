@@ -97,7 +97,11 @@ def trace_function(
             # In case we want the transaction to close automatically, 
             # the decorator will inject the transaction into the function for further use
             if close_transaction: kwargs['transaction'] = _transaction
-            res = func(*args, **kwargs)
+            
+            try:
+                res = func(*args, **kwargs)
+            except:
+                pass
 
             if not is_transaction_created: span.end()
             if close_transaction: end_transaction(_transaction)

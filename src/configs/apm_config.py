@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import os
-from typing import Any, List
+from typing import Any, List, Union
 from functools import wraps
 from typing import Callable
 
@@ -13,12 +13,14 @@ from constants.apm_constants import DefaultValues, SpanTypes, TransactionTypes
 # from dotenv import load_dotenv
 # load_dotenv() # Take environment variables from .env
 
-# TODO: Create decorator for tracking a transaction and span
 apm: Client = elasticapm.Client(
     service_name = os.getenv('APM_SERVICE_NAME', DefaultValues.APM_SERVICE_NAME),
     server_url = os.getenv('APM_SERVER_URL', DefaultValues.APM_SERVER_URL),
     environment = os.getenv('APM_ENVIRONMENT', DefaultValues.APM_ENVIRONMENT)
 )
+
+# Automatically instrumenting app's http requests, database queries, etc.
+elasticapm.instrument()
 
 def create_transaction(
     name: str, 
@@ -43,7 +45,10 @@ class TransactionCreationData:
     name: str
     type: TransactionTypes
 
-def __create_transaction(_transaction: Transaction | TransactionCreationData, func: Callable, kwargs: dict) -> tuple[Transaction, dict[str, Any], bool]:
+def __create_transaction(
+    _transaction: Transaction | TransactionCreationData, 
+    func: Callable, kwargs: dict
+) -> tuple[Transaction, dict[str, Any], bool]:
     """
         This function will create the transaction in case it needed (from type TransactionCreationData)
         Or will get it from the kwargs.
@@ -66,7 +71,7 @@ def __create_transaction(_transaction: Transaction | TransactionCreationData, fu
             _transaction = create_transaction(_transaction.name, _transaction.type)
             is_transaction_created = True
 
-        if not _transaction:
+        if not _transaction and 'transaction' in kwargs:
             # Dynamically changed transaction support (in kwargs)
             _transaction: Transaction = kwargs['transaction']
             
@@ -75,7 +80,7 @@ def __create_transaction(_transaction: Transaction | TransactionCreationData, fu
                 kwargs.pop('transaction', None)
         
         if not _transaction:
-            raise Exception(f'Can not trace {func.__name__} function without a transaction')
+            raise Exception(f'Can not trace {func.__name__}() without a transaction')
         
         return _transaction, kwargs, is_transaction_created
     except Exception as ex:
@@ -90,7 +95,7 @@ def trace_function(
 ) -> None:
     def trace_decorator(func: Callable):
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Union[Any, None]:
             _transaction, kwargs, is_transaction_created = __create_transaction(transaction, func, kwargs)
             if not is_transaction_created: span: Span = _transaction.begin_span(span_name or func.__name__, span_type)
             
@@ -99,16 +104,15 @@ def trace_function(
             if close_transaction: kwargs['transaction'] = _transaction
             
             try:
-                res = func(*args, **kwargs)
-            except:
-                pass
+                res: Any = func(*args, **kwargs)
 
-            if not is_transaction_created: span.end()
-            if close_transaction: end_transaction(_transaction)
+                if not is_transaction_created: span.end()
+                if close_transaction: end_transaction(_transaction)
 
-            return res
+                return res or None
+            except Exception as ex:
+                print(f'{func.__name__} has an error:', ex)
+                apm.capture_exception()
+
         return wrapper
     return trace_decorator
-
-# Automatically instrumenting app's http requests, database queries, etc.
-elasticapm.instrument()

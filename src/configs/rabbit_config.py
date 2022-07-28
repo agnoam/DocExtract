@@ -6,9 +6,11 @@ from logging import debug
 import pika
 from pika import SelectConnection
 from pika.connection import ConnectionParameters
+from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
 from pika.credentials import ExternalCredentials, PlainCredentials
+from concurrent.futures import ThreadPoolExecutor
 
 from .apm_config import trace_function
 from constants.apm_constants import SpanTypes
@@ -41,8 +43,11 @@ class RabbitQueue:
         self.is_new_channel = is_new_channel
 
 class RabbitDriver:
-    connection: SelectConnection = None
+    connection: SelectConnection | AsyncioConnection = None
     default_channel: Channel = None
+    
+    _use_asyncio_connection: bool
+    _thread_pool_executor: ThreadPoolExecutor = None
 
     ''' Format of this dictionary like this: { queue_name: RabbitQueue (class) } '''
     queues_configurations: dict[str, RabbitQueue] = {}
@@ -55,8 +60,24 @@ class RabbitDriver:
         queues_configurations: dict[str, RabbitQueue],
         host: str = None,
         port: int = None,
-        credentials: PlainCredentials | ExternalCredentials = None
+        credentials: PlainCredentials | ExternalCredentials = None,
+        use_asyncio_connection: bool = False,
+        concurrent_messages_number: int = 5
     ) -> None:
+        """
+            This function initializes the RabbitMQ connection in easy way.
+            
+            args:
+                queues_configurations: dict[str, RabbitQueue] - Dictionary of queue names along the configuration object
+                host: str - The host to connect to
+                credentials: PlainCredentials | ExternalCredentials = None - In case the RabbitMQ connection have a different credentials, 
+                you can set them by this property
+                use_asyncio_connection: bool = false - Whether to use asyncio as the connection method
+                concurrent_messages_number: int = 5 - The number of concurrent threads of message handlers will process
+        """
+        RabbitDriver._use_asyncio_connection = use_asyncio_connection
+        RabbitDriver._thread_pool_executor = ThreadPoolExecutor(concurrent_messages_number)
+        
         RabbitDriver.queues_configurations = queues_configurations
         RabbitDriver.__initialize_connection(host, port, credentials)
 
@@ -65,6 +86,14 @@ class RabbitDriver:
         host: str = None, port: int = None, 
         credentials: PlainCredentials | ExternalCredentials = None
     ) -> None:
+        """
+            This function initializes the connection to the RabbitMQ 
+
+            args:
+                host: str - The host to connect to
+                port: int - The port to connect to
+                credentials: PlainCredentials | ExternalCredentials - The credentials to use for the connection (in case not default credentials)
+        """
         print('__initialize_connection() executing')
 
         if host is None:
@@ -79,14 +108,30 @@ class RabbitDriver:
             port = int(os.getenv(EnvKeys.RABBIT_PORT))
             parameters.port = port
 
-        RabbitDriver.connection = pika.SelectConnection(
-            parameters = parameters,
-            on_open_callback = lambda connection: RabbitDriver.__setup_channels(connection),
-            on_close_callback = lambda event: print(f'Connection closed (by {event} event)')
-        )
+        if RabbitDriver._use_asyncio_connection:
+            RabbitDriver.connection = AsyncioConnection(
+                parameters=parameters,
+                on_open_callback = lambda connection: RabbitDriver.__setup_channels(connection),
+                on_close_callback = lambda event: print(f'Connection closed (by {event} event)'),
+                on_open_error_callback=lambda event: print(f'Connection error (by {event} event)')
+            )
+        else:
+            RabbitDriver.connection = pika.SelectConnection(
+                parameters = parameters,
+                on_open_callback = lambda connection: RabbitDriver.__setup_channels(connection),
+                on_close_callback = lambda event: print(f'Connection closed (by {event} event)'),
+                on_open_error_callback=lambda event: print(f'Connection error (by {event} event)')
+            )
+
         
     @staticmethod
     def __setup_channels(connection: SelectConnection) -> None:
+        """
+            This function setup the needed channels for communication (receiving cahnnel and sending channel)
+            
+            args:
+                connection: SelectConnection - Pika's connection object
+        """
         print('__setup_channels() executing')
         assert connection is not None, 'Cannot set up channels without active connection'
         
@@ -98,6 +143,12 @@ class RabbitDriver:
 
     @staticmethod
     def __assign_channel(channel: Channel) -> None:
+        """
+            This function creating the configured queues inside the given channel.
+
+            args:
+                channel: Channel - The channel the queues will be created inside
+        """
         print('__assign_channel() executing')
 
         # Open new thread on each queue and saving
@@ -108,18 +159,23 @@ class RabbitDriver:
 
     @staticmethod
     def __setup_queue(queue_name: str, queue_declaration: RabbitQueue, channel: Channel) -> None:
+        """
+            This function setup a queue consumers
+
+            args:
+                queue_name: str - Queue name to declare
+                queue_declaration: RabbitQueue - Queue settings for declaration
+                channel: Channel - The channel to declare the queue in
+        """
         print('__setup_queue() executing')
 
         channel.queue_declare(queue=queue_name)
         
-        '''In case the queue_configuration has a callback function, it means the user want to set a consumer'''
-        if queue_declaration.callback is not None:            
+        # In case the queue_configuration has a callback function, it means the user want to set a consumer
+        if queue_declaration.callback is not None:
             channel.basic_consume(
                 queue_name,
-                lambda *_args: threading.Thread(
-                    name=f'rabbitmq_queue_handler:{queue_name}', 
-                    target=queue_declaration.callback, args=_args
-                ).start(),
+                lambda *_args: RabbitDriver._thread_pool_executor.submit(queue_declaration.callback, *_args),
                 auto_ack = queue_declaration.auto_ack,
                 exclusive = queue_declaration.exclusive,
                 consumer_tag = queue_declaration.consumer_tag,
@@ -128,16 +184,25 @@ class RabbitDriver:
         
     @staticmethod
     def get_channel() -> Channel:
+        """
+            Get the "sending" channel
+
+            returns: Channel - The "sending" channel
+        """
         print('get_channel() executing')
         _channel: Channel = RabbitDriver.default_channel
 
         if _channel is not None:
             return _channel
         
-        raise Exception('There queue is not handled in any channel')
+        raise Exception('Did not find an active channel, RabbitDriver initialized?')
 
     @staticmethod
     def listen() -> None:
+        """
+            This function start the listening loop, 
+            The code will not continue after this function until you stop the listening loop
+        """
         try:
             print('listen() executing')
 
@@ -145,12 +210,18 @@ class RabbitDriver:
             assert RabbitDriver.connection is not None, err_message
 
             print('Starting to listen by io loop')
-            RabbitDriver.connection.ioloop.start()
+            if RabbitDriver._use_asyncio_connection:
+                RabbitDriver.connection.ioloop.run_forever()
+            else:
+                RabbitDriver.connection.ioloop.start()
         except Exception as ex:
             print('Listen for RabbitMQ failed:', ex)
 
     @staticmethod
     def close_connection() -> None:
+        """
+            This function closing the active connection
+        """
         print('close_connection() executing')
 
         for queue_name in RabbitDriver.active_channels:

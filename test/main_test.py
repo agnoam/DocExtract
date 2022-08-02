@@ -7,5 +7,8 @@ import pytest
     In each unit test,
 
     - Check the expected result
+    - In case of in-function functions, mock the child function result - to test an expected behaviour of the host function
+    
     - Check expected failure
+    - Check thrown exceptions
 """

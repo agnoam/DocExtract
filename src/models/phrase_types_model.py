@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 class PhraseTypes(Base):
     __tablename__ = 'phrase_types'
+    
     id=Column(Integer, primary_key=True, autoincrement=True)
     type_name=Column(String, unique=True, nullable=False)
     description=Column(String, nullable=True)

@@ -91,4 +91,4 @@ def extract_strings_by_style(docx_path: str, styles_names: list[str]) -> dict[st
         return results
 
 if __name__ == '__main__':
-    extract_strings_by_style('<path-to-docx>', ['<style_name>', '<style_name2>'])
+    extract_strings_by_style(r'C:\Users\joe\Desktop\DocExtract\temp\יש לנו טקסט מוזר.docx', ['פועל', 'מאכל', 'אדם'])
